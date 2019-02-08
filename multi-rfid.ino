@@ -4,24 +4,22 @@
 #include <Adafruit_NeoPixel.h>
 #include <SD.h>
 
-// * Define constants for the music maker wing
-
-// * Define constants for the RFID reader
-#define ONE_SS_PIN 5   // Configurable, see typical pin layout above
-#define ONE_RST_PIN 10 // Configurable, see typical pin layout above
-#define TWO_SS_PIN 6   // Configurable, see typical pin layout above
-#define TWO_RST_PIN 11 // Configurable, see typical pin layout above
+// * Define constants
+#define RIFD_NUMBER_OF_READERS 2
+#define RFID_RESET_PIN 10
+#define RFID_ONE_SELECT_PIN 11
+#define RFID_TWO_SELECT_PIN 6
 
 #define ONBOARD_LED 13
 
-// * Instantiate our classes
-MFRC522 mfrc522_ONE(ONE_SS_PIN, ONE_RST_PIN); // Create MFRC522 instance
-MFRC522 mfrc522_TWO(TWO_SS_PIN, TWO_RST_PIN); // Create MFRC522 instance
+#define NEOPIXEL_PIN 12
+#define NEOPIXEL_TOTAL_LEDS 8
 
-// * setup variables for the RFID tags we're looking for
-String content = "";
-String targetTag1 = "04 72 d2 4a e6 4c 81";
-String targetTag2 = "04 52 c5 4a e6 4c 80";
+// * Instantiate our classes
+MFRC522 mfrc522[RIFD_NUMBER_OF_READERS];
+byte RFID_selectPins[] = {RFID_ONE_SELECT_PIN, RFID_TWO_SELECT_PIN};
+
+Adafruit_NeoPixel bar = Adafruit_NeoPixel(NEOPIXEL_TOTAL_LEDS, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
 // * setup pokemon RFID tags
 String bulbasaur = "04 60 d0 4a e6 4c 81";
@@ -33,28 +31,39 @@ void setup()
 {
     Serial.begin(9600); // Initialize serial communications with the PC
     // while (!Serial)
-    // ; // Do nothing if no serial port is opened (added for Arduinos based on ATMEGA32U4)
-    setupRFIDCardReader();
+    //     ; // Do nothing if no serial port is opened
 
+    // * setup devices
+    pinMode(ONBOARD_LED, OUTPUT);
+    setupRFIDCardReader();
+    setupNeopixelBar();
+
+    // * Let everyone know we're ready
     signalReady();
     Serial.println(F("Scan PICC to see UID, SAK, type, and data blocks..."));
 }
 
 void setupRFIDCardReader()
 {
-    SPI.begin();                           // Init SPI bus
-    mfrc522_ONE.PCD_Init();                // Init MFRC522
-    mfrc522_ONE.PCD_DumpVersionToSerial(); // Show details of PCD - MFRC522 Card Reader details
-    mfrc522_TWO.PCD_Init();                // Init MFRC522
-    mfrc522_TWO.PCD_DumpVersionToSerial(); // Show details of PCD - MFRC522 Card Reader details
-                                           // Serial.println(mfrc522.PCD_GetAntennaGain());
-                                           // mfrc522.PCD_SetAntennaGain(mfrc522.PCD_RxGain.RxGain_48dB);
-                                           // Serial.println(mfrc522.PCD_GetAntennaGain());
+    SPI.begin(); // Init SPI bus
+
+    for (uint8_t i = 0; i < RIFD_NUMBER_OF_READERS; i++)
+    {
+        mfrc522[i].PCD_Init(RFID_selectPins[i], RFID_RESET_PIN);
+        Serial.print("Reader ");
+        Serial.print(i);
+        Serial.print(F(": "));
+        mfrc522[i].PCD_DumpVersionToSerial();
+    }
 }
 
 void signalReady()
 {
-    pinMode(ONBOARD_LED, OUTPUT);
+    fillBar(bar.Color(50, 200, 50), 100);
+    delay(1000);
+    fillBar(bar.Color(0, 0, 0), 100);
+    delay(1000);
+
     digitalWrite(ONBOARD_LED, HIGH);
     delay(100);
     digitalWrite(ONBOARD_LED, LOW);
@@ -73,27 +82,37 @@ bool readACardOnThePreviousLoop = false;
 
 void loop()
 {
-
-    // * Look for new cards
-    if (!mfrc522_ONE.PICC_IsNewCardPresent() && !mfrc522_TWO.PICC_IsNewCardPresent())
+    for (uint8_t reader = 0; reader < RIFD_NUMBER_OF_READERS; reader++)
     {
-        if (readACardOnThePreviousLoop != true)
+        if (mfrc522[reader].PICC_IsNewCardPresent() && mfrc522[reader].PICC_ReadCardSerial())
         {
+            Serial.print(F("Reader "));
+            Serial.print(reader);
+            Serial.print(F(": Card UID:"));
+            dump_byte_array(mfrc522[reader].uid.uidByte, mfrc522[reader].uid.size);
         }
-        readACardOnThePreviousLoop = false;
-        return;
     }
 
-    // * Select one of the cards
-    if (!mfrc522_ONE.PICC_ReadCardSerial() && !mfrc522_TWO.PICC_ReadCardSerial())
-    {
-        return;
-    }
+    // // * Look for new cards
+    // if (!mfrc522_ONE.PICC_IsNewCardPresent() && !mfrc522_TWO.PICC_IsNewCardPresent())
+    // {
+    //     if (readACardOnThePreviousLoop != true)
+    //     {
+    //     }
+    //     readACardOnThePreviousLoop = false;
+    //     return;
+    // }
 
-    // * Dump debug info about the card; PICC_HaltA() is automatically called
-    mfrc522_ONE.PICC_DumpToSerial(&(mfrc522_ONE.uid));
-    mfrc522_TWO.PICC_DumpToSerial(&(mfrc522_TWO.uid));
-    return;
+    // // * Select one of the cards
+    // if (!mfrc522_ONE.PICC_ReadCardSerial() && !mfrc522_TWO.PICC_ReadCardSerial())
+    // {
+    //     return;
+    // }
+
+    // // * Dump debug info about the card; PICC_HaltA() is automatically called
+    // mfrc522_ONE.PICC_DumpToSerial(&(mfrc522_ONE.uid));
+    // mfrc522_TWO.PICC_DumpToSerial(&(mfrc522_TWO.uid));
+    // return;
 
     // captureUID();
     // Serial.println("Got tag id:");
@@ -149,34 +168,40 @@ void captureUID()
     // }
     // Serial.println();
 }
-void printDirectory(File dir, int numTabs)
-{
-    while (true)
-    {
 
-        File entry = dir.openNextFile();
-        if (!entry)
-        {
-            // no more files
-            //Serial.println("**nomorefiles**");
-            break;
-        }
-        for (uint8_t i = 0; i < numTabs; i++)
-        {
-            Serial.print('\t');
-        }
-        Serial.print(entry.name());
-        if (entry.isDirectory())
-        {
-            Serial.println("/");
-            printDirectory(entry, numTabs + 1);
-        }
-        else
-        {
-            // files have sizes, directories do not
-            Serial.print("\t\t");
-            Serial.println(entry.size(), DEC);
-        }
-        entry.close();
+void setupNeopixelBar()
+{
+    Serial.println("Starting neopixel bar");
+    bar.begin();
+    bar.setBrightness(127);
+    bar.show();
+}
+
+void fillBar(uint32_t color)
+{
+    for (int i = 0; i < NEOPIXEL_TOTAL_LEDS; i++)
+    {
+        bar.setPixelColor(i, color);
     }
+    bar.show();
+}
+void fillBar(uint32_t color, uint32_t pauseDuration)
+{
+    for (int i = 0; i < NEOPIXEL_TOTAL_LEDS; i++)
+    {
+        bar.setPixelColor(i, color);
+
+        bar.show();
+        delay(pauseDuration);
+    }
+}
+
+void dump_byte_array(byte *buffer, byte bufferSize)
+{
+    for (byte i = 0; i < bufferSize; i++)
+    {
+        Serial.print(buffer[i] < 0x16 ? " 0" : " ");
+        Serial.print(buffer[i], HEX);
+    }
+    Serial.println("");
 }
