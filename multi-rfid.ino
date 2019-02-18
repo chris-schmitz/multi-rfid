@@ -4,10 +4,13 @@
 #include <Adafruit_NeoPixel.h>
 #include <SD.h>
 
+#include "RFIDData.h"
+
 // * Define constants
 #define RIFD_NUMBER_OF_READERS 2
+
 #define RFID_RESET_PIN 10
-#define RFID_ONE_SELECT_PIN 11
+#define RFID_ONE_SELECT_PIN 5
 #define RFID_TWO_SELECT_PIN 6
 
 #define ONBOARD_LED 13
@@ -17,6 +20,8 @@
 
 // * Instantiate our classes
 MFRC522 mfrc522[RIFD_NUMBER_OF_READERS];
+RFIDData RFIDDataCache[RIFD_NUMBER_OF_READERS];
+
 byte RFID_selectPins[] = {RFID_ONE_SELECT_PIN, RFID_TWO_SELECT_PIN};
 
 Adafruit_NeoPixel bar = Adafruit_NeoPixel(NEOPIXEL_TOTAL_LEDS, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
@@ -30,8 +35,8 @@ String pikachu = "04 60 d1 4a e6 4c 81";
 void setup()
 {
     Serial.begin(9600); // Initialize serial communications with the PC
-    // while (!Serial)
-    //     ; // Do nothing if no serial port is opened
+    while (!Serial)
+        ; // Do nothing if no serial port is opened
 
     // * setup devices
     pinMode(ONBOARD_LED, OUTPUT);
@@ -82,6 +87,7 @@ bool readACardOnThePreviousLoop = false;
 
 void loop()
 {
+
     for (uint8_t reader = 0; reader < RIFD_NUMBER_OF_READERS; reader++)
     {
         if (mfrc522[reader].PICC_IsNewCardPresent() && mfrc522[reader].PICC_ReadCardSerial())
@@ -90,83 +96,18 @@ void loop()
             Serial.print(reader);
             Serial.print(F(": Card UID:"));
             dump_byte_array(mfrc522[reader].uid.uidByte, mfrc522[reader].uid.size);
+
+            RFIDDataCache[reader].captureCardUid(mfrc522[reader]);
+
+            Serial.print("Got the id: ");
+            for (uint8_t i = 0; i < RFIDDataCache[reader].idLength; i++)
+            {
+                Serial.print(RFIDDataCache[reader].idArray[i], HEX);
+                Serial.print(" ");
+            }
+            Serial.println("");
         }
     }
-
-    // // * Look for new cards
-    // if (!mfrc522_ONE.PICC_IsNewCardPresent() && !mfrc522_TWO.PICC_IsNewCardPresent())
-    // {
-    //     if (readACardOnThePreviousLoop != true)
-    //     {
-    //     }
-    //     readACardOnThePreviousLoop = false;
-    //     return;
-    // }
-
-    // // * Select one of the cards
-    // if (!mfrc522_ONE.PICC_ReadCardSerial() && !mfrc522_TWO.PICC_ReadCardSerial())
-    // {
-    //     return;
-    // }
-
-    // // * Dump debug info about the card; PICC_HaltA() is automatically called
-    // mfrc522_ONE.PICC_DumpToSerial(&(mfrc522_ONE.uid));
-    // mfrc522_TWO.PICC_DumpToSerial(&(mfrc522_TWO.uid));
-    // return;
-
-    // captureUID();
-    // Serial.println("Got tag id:");
-    // Serial.println(content.substring(1));
-
-    // // ! Note that we need to start reading the sub string at index 1 instead of 0
-    // // ! otherwise we get a space at the beginning
-    // if (content.substring(1) == targetTag1)
-    // {
-    //     Serial.println("found tag 1");
-    //     readACardOnThePreviousLoop = true;
-    // }
-    // else if (content.substring(1) == targetTag2)
-    // {
-    //     Serial.println("found tag 2");
-    //     readACardOnThePreviousLoop = true;
-    // }
-    // else if (content.substring(1) == charmander)
-    // {
-
-    //     readACardOnThePreviousLoop = true;
-    // }
-    // else if (content.substring(1) == bulbasaur)
-    // {
-
-    //     readACardOnThePreviousLoop = true;
-    // }
-    // else if (content.substring(1) == squirtle)
-    // {
-    //     readACardOnThePreviousLoop = true;
-    // }
-    // else if (content.substring(1) == pikachu)
-    // {
-    //     readACardOnThePreviousLoop = true;
-    // }
-    // else
-    // {
-    //     Serial.println("no tag match found");
-    //     readACardOnThePreviousLoop = false;
-    // }
-}
-
-void captureUID()
-{
-    // content = "";
-    // for (byte i = 0; i < mfrc522.uid.size; i++)
-    // {
-    //     // Serial.print(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " ");
-    //     // Serial.print(mfrc522.uid.uidByte[i], HEX);
-
-    //     content.concat(String(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " "));
-    //     content.concat(String(mfrc522.uid.uidByte[i], HEX));
-    // }
-    // Serial.println();
 }
 
 void setupNeopixelBar()
@@ -200,7 +141,7 @@ void dump_byte_array(byte *buffer, byte bufferSize)
 {
     for (byte i = 0; i < bufferSize; i++)
     {
-        Serial.print(buffer[i] < 0x16 ? " 0" : " ");
+        Serial.print(buffer[i] < 0x10 ? " 0" : " ");
         Serial.print(buffer[i], HEX);
     }
     Serial.println("");
