@@ -22,15 +22,26 @@
 MFRC522 mfrc522[RIFD_NUMBER_OF_READERS];
 RFIDData RFIDDataCache[RIFD_NUMBER_OF_READERS];
 
+// * Create our target RFID data instances
+int charmanderId[7] = {0x04, 0x78, 0xd2, 0x4a, 0xe6, 0x4c, 0x81};
+int squirtleId[7] = {0x04, 0x59, 0xd0, 0x4a, 0xe6, 0x4c, 0x81};
+int pikachuId[7] = {0x04, 0x60, 0xd1, 0x4a, 0xe6, 0x4c, 0x81};
+int bulbasaurId[7] = {0x04, 0x60, 0xd0, 0x4a, 0xe6, 0x4c, 0x81};
+
+RFIDData charmander(charmanderId);
+RFIDData bulbasaur(bulbasaurId);
+RFIDData squirtle(squirtleId);
+RFIDData pikachu(pikachuId);
+
 byte RFID_selectPins[] = {RFID_ONE_SELECT_PIN, RFID_TWO_SELECT_PIN};
 
 Adafruit_NeoPixel bar = Adafruit_NeoPixel(NEOPIXEL_TOTAL_LEDS, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
 // * setup pokemon RFID tags
-String bulbasaur = "04 60 d0 4a e6 4c 81";
-String charmander = "04 78 d2 4a e6 4c 81";
-String squirtle = "04 59 d0 4a e6 4c 81";
-String pikachu = "04 60 d1 4a e6 4c 81";
+// String bulbasaur = "04 60 d0 4a e6 4c 81";
+// String charmander = "04 78 d2 4a e6 4c 81";
+// String squirtle = "04 59 d0 4a e6 4c 81";
+// String pikachu = "04 60 d1 4a e6 4c 81";
 
 void setup()
 {
@@ -104,20 +115,51 @@ void loop()
             // | fire logic based on cached reader
             RFIDData newCard(mfrc522[reader]);
 
-            if (RFIDDataCache[reader].idsMatch(newCard))
+            if (RFIDDataCache[reader] == newCard)
             {
                 Serial.println("");
                 Serial.println("");
+                Serial.print("=== Reader");
+                Serial.print(reader);
+                Serial.println(" ===");
+
                 Serial.println("=== already captured this card!! ===");
+                handleCardLogic(reader);
+                Serial.println("====================================");
             }
             else
             {
                 Serial.println("");
                 Serial.println("");
+                Serial.print("+++ Reader");
+                Serial.print(reader);
+                Serial.println(" +++");
                 Serial.println("!!! we got a new card here !!!");
                 RFIDDataCache[reader] = newCard;
+                handleCardLogic(reader);
+                Serial.println("++++++++++++++++++++++++++++++");
             }
         }
+    }
+}
+
+void handleCardLogic(int readerNumber)
+{
+    if (RFIDDataCache[readerNumber].idMatches(charmander))
+    {
+        Serial.println("Charmander!!");
+    }
+    if (RFIDDataCache[readerNumber].idMatches(bulbasaur))
+    {
+        Serial.println("Bulbasaur??!!!");
+    }
+    if (RFIDDataCache[readerNumber].idMatches(squirtle))
+    {
+        Serial.println("Squirtle :O");
+    }
+    if (RFIDDataCache[readerNumber].idMatches(pikachu))
+    {
+        Serial.println("Pika pika!");
     }
 }
 
