@@ -9,6 +9,13 @@ struct RFIDData
     int idArray[idLength] = {0};
     uint8_t currentIndex = 0;
 
+    RFIDData() {}
+
+    RFIDData(MFRC522 &reader)
+    {
+        this->captureCardUid(reader);
+    }
+
     void captureCardUid(MFRC522 &reader)
     {
         for (uint8_t i = 0; i < reader.uid.size; i++)
@@ -23,7 +30,7 @@ struct RFIDData
         this->currentIndex++;
     }
 
-    bool compare(RFIDData payload2)
+    bool idsMatch(RFIDData payload2)
     {
         if (this->currentIndex != payload2.currentIndex)
         {

@@ -97,15 +97,26 @@ void loop()
             Serial.print(F(": Card UID:"));
             dump_byte_array(mfrc522[reader].uid.uidByte, mfrc522[reader].uid.size);
 
-            RFIDDataCache[reader].captureCardUid(mfrc522[reader]);
+            // | capture new id in new instance
+            // | compare to cached id
+            // | if they're different, replace the cached RFIDData instance with the new instance
+            // | if they're the same do nothing
+            // | fire logic based on cached reader
+            RFIDData newCard(mfrc522[reader]);
 
-            Serial.print("Got the id: ");
-            for (uint8_t i = 0; i < RFIDDataCache[reader].idLength; i++)
+            if (RFIDDataCache[reader].idsMatch(newCard))
             {
-                Serial.print(RFIDDataCache[reader].idArray[i], HEX);
-                Serial.print(" ");
+                Serial.println("");
+                Serial.println("");
+                Serial.println("=== already captured this card!! ===");
             }
-            Serial.println("");
+            else
+            {
+                Serial.println("");
+                Serial.println("");
+                Serial.println("!!! we got a new card here !!!");
+                RFIDDataCache[reader] = newCard;
+            }
         }
     }
 }
