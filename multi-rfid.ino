@@ -42,6 +42,7 @@ uint32_t RED = bar.Color(255, 0, 0);
 uint32_t GREEN = bar.Color(0, 255, 0);
 uint32_t BLUE = bar.Color(0, 0, 255);
 uint32_t YELLOW = bar.Color(255, 255, 0);
+uint32_t BLACK = bar.Color(0, 0, 0);
 
 enum BarSections
 {
@@ -53,8 +54,8 @@ enum BarSections
 void setup()
 {
     Serial.begin(9600); // Initialize serial communications with the PC
-    while (!Serial)
-        ; // Do nothing if no serial port is opened
+    // while (!Serial)
+    //     ; // Do nothing if no serial port is opened
 
     // * setup devices
     pinMode(ONBOARD_LED, OUTPUT);
@@ -101,15 +102,16 @@ void signalReady()
     delay(100);
 }
 
-bool readACardOnThePreviousLoop = false;
+bool holdOverDeadLoop[2] = {false, false};
 
 void loop()
 {
-
+    // Serial.println("*********************************** Top of loop ");
     for (uint8_t reader = 0; reader < RIFD_NUMBER_OF_READERS; reader++)
     {
         if (mfrc522[reader].PICC_IsNewCardPresent() && mfrc522[reader].PICC_ReadCardSerial())
         {
+            holdOverDeadLoop[reader] = true;
             Serial.print(F("Reader "));
             Serial.print(reader);
             Serial.print(F(": Card UID:"));
@@ -146,6 +148,15 @@ void loop()
                 handleCardLogic(reader);
                 Serial.println("++++++++++++++++++++++++++++++");
             }
+        }
+        else
+        {
+            if (holdOverDeadLoop[reader] == false)
+            {
+                BarSections section = reader == 0 ? BOTTOM_SECTION : TOP_SECTION;
+                fillBar(BLACK, section);
+            }
+            holdOverDeadLoop[reader] = false;
         }
     }
 }
