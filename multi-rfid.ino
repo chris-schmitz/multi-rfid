@@ -37,11 +37,18 @@ byte RFID_selectPins[] = {RFID_ONE_SELECT_PIN, RFID_TWO_SELECT_PIN};
 
 Adafruit_NeoPixel bar = Adafruit_NeoPixel(NEOPIXEL_TOTAL_LEDS, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
-// * setup pokemon RFID tags
-// String bulbasaur = "04 60 d0 4a e6 4c 81";
-// String charmander = "04 78 d2 4a e6 4c 81";
-// String squirtle = "04 59 d0 4a e6 4c 81";
-// String pikachu = "04 60 d1 4a e6 4c 81";
+// * Colors
+uint32_t RED = bar.Color(255, 0, 0);
+uint32_t GREEN = bar.Color(0, 255, 0);
+uint32_t BLUE = bar.Color(0, 0, 255);
+uint32_t YELLOW = bar.Color(255, 255, 0);
+
+enum BarSections
+{
+    TOP_SECTION = 0,
+    BOTTOM_SECTION,
+    FULL_SECTION,
+};
 
 void setup()
 {
@@ -145,21 +152,27 @@ void loop()
 
 void handleCardLogic(int readerNumber)
 {
-    if (RFIDDataCache[readerNumber].idMatches(charmander))
+    BarSections section = readerNumber == 0 ? BOTTOM_SECTION : TOP_SECTION;
+
+    if (RFIDDataCache[readerNumber] == charmander)
     {
         Serial.println("Charmander!!");
+        fillBar(RED, section);
     }
-    if (RFIDDataCache[readerNumber].idMatches(bulbasaur))
+    if (RFIDDataCache[readerNumber] == bulbasaur)
     {
         Serial.println("Bulbasaur??!!!");
+        fillBar(GREEN, section);
     }
-    if (RFIDDataCache[readerNumber].idMatches(squirtle))
+    if (RFIDDataCache[readerNumber] == squirtle)
     {
         Serial.println("Squirtle :O");
+        fillBar(BLUE, section);
     }
-    if (RFIDDataCache[readerNumber].idMatches(pikachu))
+    if (RFIDDataCache[readerNumber] == pikachu)
     {
         Serial.println("Pika pika!");
+        fillBar(YELLOW, section);
     }
 }
 
@@ -188,6 +201,32 @@ void fillBar(uint32_t color, uint32_t pauseDuration)
         bar.show();
         delay(pauseDuration);
     }
+}
+
+void fillBar(uint32_t color, BarSections section)
+{
+    uint8_t start, end;
+    if (section == TOP_SECTION)
+    {
+        start = 4;
+        end = 7;
+    }
+    else if (section == BOTTOM_SECTION)
+    {
+        start = 0;
+        end = 3;
+    }
+    else if (section == FULL_SECTION)
+    {
+        start = 0;
+        end = 7;
+    }
+
+    for (int i = start; i <= end; i++)
+    {
+        bar.setPixelColor(i, color);
+    }
+    bar.show();
 }
 
 void dump_byte_array(byte *buffer, byte bufferSize)
