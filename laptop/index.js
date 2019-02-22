@@ -2,11 +2,17 @@ const SerialPort = require("serialport")
 const { exec } = require("child_process")
 
 const device = `/dev/tty.usbmodem14101`
+
+// | Note that these property values correspond to the `pokemon` enum
+// | in the `multi-rfid.ino` file. Yeah we could just use an array index order
+// | instead of numbered properties, but I'd rather do it this way so that
+// | the order of the entries into this object don't determine the enum values
+// | they correspond to.
 const urls = {
-    bulbasaur: "https://en.wikipedia.org/wiki/Bulbasaur",
-    charmandar: "https://en.wikipedia.org/wiki/Charmander",
-    squirtle: "https://en.wikipedia.org/wiki/Squirtle",
-    pikachu: "https://en.wikipedia.org/wiki/Pikachu"
+    0: "https://en.wikipedia.org/wiki/Bulbasaur",
+    1: "https://en.wikipedia.org/wiki/Charmander",
+    2: "https://en.wikipedia.org/wiki/Squirtle",
+    3: "https://en.wikipedia.org/wiki/Pikachu"
 }
 
 const port = new SerialPort(device, {
@@ -28,9 +34,16 @@ let running = false
 function handleTagRead(data) {
     if (!running) {
         running = true
-        console.log("got new data")
-        console.log(data)
-        openWikiPage("bulbasaur")
+        const enumValue = +data
+
+        if (enumValue in urls) {
+            const pokemon = urls[enumValue]
+            openWikiPage(pokemon)
+        } else {
+            console.error(
+                `Unable to find the pokemon name '${data}' in the url list.`
+            )
+        }
 
         setTimeout(() => {
             running = false
@@ -38,13 +51,13 @@ function handleTagRead(data) {
     }
 }
 
-function openWikiPage(pokemon) {
-    const command = `open ${urls.bulbasaur}`
+function openWikiPage(url) {
+    const command = `open ${url}`
     exec(command, (error, stderr, stdout) => {
         if (error) {
             console.error("Error opening web page")
             console.error(error)
         }
-        console.log(`Open page for ${pokemon}`)
+        console.log(`Open page for ${url}`)
     })
 }

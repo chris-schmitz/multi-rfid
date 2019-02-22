@@ -18,6 +18,8 @@
 #define NEOPIXEL_PIN 12
 #define NEOPIXEL_TOTAL_LEDS 8
 
+#define VERBOSE_SERIAL false
+
 // * Instantiate our classes
 MFRC522 mfrc522[RIFD_NUMBER_OF_READERS];
 RFIDData RFIDDataCache[RIFD_NUMBER_OF_READERS];
@@ -32,6 +34,14 @@ RFIDData charmander(charmanderId);
 RFIDData bulbasaur(bulbasaurId);
 RFIDData squirtle(squirtleId);
 RFIDData pikachu(pikachuId);
+
+enum pokemon
+{
+    BULBASAUR = 0,
+    CHARMANDER,
+    SQUIRTLE,
+    PIKACHU
+};
 
 byte RFID_selectPins[] = {RFID_ONE_SELECT_PIN, RFID_TWO_SELECT_PIN};
 
@@ -64,7 +74,10 @@ void setup()
 
     // * Let everyone know we're ready
     signalReady();
-    Serial.println(F("Scan PICC to see UID, SAK, type, and data blocks..."));
+    if (VERBOSE_SERIAL)
+    {
+        Serial.println(F("Scan PICC to see UID, SAK, type, and data blocks..."));
+    }
 }
 
 void setupRFIDCardReader()
@@ -74,9 +87,12 @@ void setupRFIDCardReader()
     for (uint8_t i = 0; i < RIFD_NUMBER_OF_READERS; i++)
     {
         mfrc522[i].PCD_Init(RFID_selectPins[i], RFID_RESET_PIN);
-        Serial.print("Reader ");
-        Serial.print(i);
-        Serial.print(F(": "));
+        if (VERBOSE_SERIAL)
+        {
+            Serial.print("Reader ");
+            Serial.print(i);
+            Serial.print(F(": "));
+        }
         mfrc522[i].PCD_DumpVersionToSerial();
     }
 }
@@ -106,47 +122,55 @@ bool holdOverDeadLoop[2] = {false, false};
 
 void loop()
 {
-    // Serial.println("*********************************** Top of loop ");
     for (uint8_t reader = 0; reader < RIFD_NUMBER_OF_READERS; reader++)
     {
         if (mfrc522[reader].PICC_IsNewCardPresent() && mfrc522[reader].PICC_ReadCardSerial())
         {
             holdOverDeadLoop[reader] = true;
-            Serial.print(F("Reader "));
-            Serial.print(reader);
-            Serial.print(F(": Card UID:"));
-            dump_byte_array(mfrc522[reader].uid.uidByte, mfrc522[reader].uid.size);
+            if (VERBOSE_SERIAL)
+            {
+                Serial.print(F("Reader "));
+                Serial.print(reader);
+                Serial.print(F(": Card UID:"));
+                dump_byte_array(mfrc522[reader].uid.uidByte, mfrc522[reader].uid.size);
+            }
 
-            // | capture new id in new instance
-            // | compare to cached id
-            // | if they're different, replace the cached RFIDData instance with the new instance
-            // | if they're the same do nothing
-            // | fire logic based on cached reader
             RFIDData newCard(mfrc522[reader]);
 
             if (RFIDDataCache[reader] == newCard)
             {
-                Serial.println("");
-                Serial.println("");
-                Serial.print("=== Reader");
-                Serial.print(reader);
-                Serial.println(" ===");
+                if (VERBOSE_SERIAL)
+                {
+                    Serial.println("");
+                    Serial.println("");
+                    Serial.print("=== Reader");
+                    Serial.print(reader);
+                    Serial.println(" ===");
 
-                Serial.println("=== already captured this card!! ===");
+                    Serial.println("=== already captured this card!! ===");
+                }
                 handleCardLogic(reader);
-                Serial.println("====================================");
+
+                if (VERBOSE_SERIAL)
+                    Serial.println("====================================");
             }
             else
             {
-                Serial.println("");
-                Serial.println("");
-                Serial.print("+++ Reader");
-                Serial.print(reader);
-                Serial.println(" +++");
-                Serial.println("!!! we got a new card here !!!");
+                if (VERBOSE_SERIAL)
+                {
+                    Serial.println("");
+                    Serial.println("");
+                    Serial.print("+++ Reader");
+                    Serial.print(reader);
+                    Serial.println(" +++");
+                    Serial.println("!!! we got a new card here !!!");
+                }
+
                 RFIDDataCache[reader] = newCard;
                 handleCardLogic(reader);
-                Serial.println("++++++++++++++++++++++++++++++");
+
+                if (VERBOSE_SERIAL)
+                    Serial.println("++++++++++++++++++++++++++++++");
             }
         }
         else
@@ -167,29 +191,28 @@ void handleCardLogic(int readerNumber)
 
     if (RFIDDataCache[readerNumber] == charmander)
     {
-        Serial.println("Charmander!!");
+        Serial.println(CHARMANDER);
         fillBar(RED, section);
     }
     if (RFIDDataCache[readerNumber] == bulbasaur)
     {
-        Serial.println("Bulbasaur??!!!");
+        Serial.println(BULBASAUR);
         fillBar(GREEN, section);
     }
     if (RFIDDataCache[readerNumber] == squirtle)
     {
-        Serial.println("Squirtle :O");
+        Serial.println(SQUIRTLE);
         fillBar(BLUE, section);
     }
     if (RFIDDataCache[readerNumber] == pikachu)
     {
-        Serial.println("Pika pika!");
+        Serial.println(PIKACHU);
         fillBar(YELLOW, section);
     }
 }
 
 void setupNeopixelBar()
 {
-    Serial.println("Starting neopixel bar");
     bar.begin();
     bar.setBrightness(127);
     bar.show();
