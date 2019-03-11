@@ -1,14 +1,16 @@
 {
-  "name": "multi-rfid-laptop",
-  "version": "1.0.0",
-  "description": "The laptop code for receiving messages from the arduino multi-rfid sketch.",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "Chris Schmitz",
-  "license": "ISC",
-  "dependencies": {
-    "serialport": "^7.1.4"
-  }
+    "name": "multi-rfid-laptop",
+    "version": "1.0.0",
+    "description": "The laptop code for receiving messages from the arduino multi-rfid sketch.",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "author": "Chris Schmitz",
+    "license": "ISC",
+    "dependencies": {
+        "chalk": "^2.4.2",
+        "serialport": "^7.1.4"
+    }
 }

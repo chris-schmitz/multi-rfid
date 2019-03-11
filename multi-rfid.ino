@@ -8,17 +8,22 @@
 
 // * Define constants
 #define RIFD_NUMBER_OF_READERS 2
-
 #define RFID_RESET_PIN 10
-#define RFID_ONE_SELECT_PIN 5
-#define RFID_TWO_SELECT_PIN 6
+
+// * Reader select pins
+#define RFID_ONE_SELECT_PIN 14
+#define RFID_TWO_SELECT_PIN 15
+#define RFID_THREE_SELECT_PIN 17
+#define RFID_FOUR_SELECT_PIN 18
+
+byte RFID_selectPins[] = {RFID_ONE_SELECT_PIN, RFID_TWO_SELECT_PIN, RFID_THREE_SELECT_PIN, RFID_FOUR_SELECT_PIN};
 
 #define ONBOARD_LED 13
 
 #define NEOPIXEL_PIN 12
 #define NEOPIXEL_TOTAL_LEDS 8
 
-#define VERBOSE_SERIAL false
+#define VERBOSE_SERIAL true
 
 // * Instantiate our classes
 MFRC522 mfrc522[RIFD_NUMBER_OF_READERS];
@@ -37,13 +42,11 @@ RFIDData pikachu(pikachuId);
 
 enum pokemon
 {
-    BULBASAUR = 0,
+    BULBASAUR = 1,
     CHARMANDER,
     SQUIRTLE,
     PIKACHU
 };
-
-byte RFID_selectPins[] = {RFID_ONE_SELECT_PIN, RFID_TWO_SELECT_PIN};
 
 Adafruit_NeoPixel bar = Adafruit_NeoPixel(NEOPIXEL_TOTAL_LEDS, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
@@ -64,8 +67,8 @@ enum BarSections
 void setup()
 {
     Serial.begin(9600); // Initialize serial communications with the PC
-    // while (!Serial)
-    //     ; // Do nothing if no serial port is opened
+    while (!Serial)
+        ; // Do nothing if no serial port is opened
 
     // * setup devices
     pinMode(ONBOARD_LED, OUTPUT);
@@ -86,6 +89,8 @@ void setupRFIDCardReader()
 
     for (uint8_t i = 0; i < RIFD_NUMBER_OF_READERS; i++)
     {
+        // Serial.print("Select pin: ");
+        // Serial.println(RFID_selectPins[i]);
         mfrc522[i].PCD_Init(RFID_selectPins[i], RFID_RESET_PIN);
         if (VERBOSE_SERIAL)
         {
@@ -124,9 +129,37 @@ void loop()
 {
     for (uint8_t reader = 0; reader < RIFD_NUMBER_OF_READERS; reader++)
     {
+        // Serial.print("Reader: ");
+        // Serial.println(reader);
+        if (mfrc522[reader].PICC_IsNewCardPresent() && mfrc522[reader].PICC_ReadCardSerial())
+        {
+            Serial.print(F("Reader "));
+            Serial.print(reader);
+            // Show some details of the PICC (that is: the tag/card)
+            Serial.print(F(": Card UID:"));
+            dump_byte_array(mfrc522[reader].uid.uidByte, mfrc522[reader].uid.size);
+            Serial.println();
+            // Serial.print(F("PICC type: "));
+            // MFRC522::PICC_Type piccType = mfrc522[reader].PICC_GetType(mfrc522[reader].uid.sak);
+            // Serial.println(mfrc522[reader].PICC_GetTypeName(piccType));
+
+            // Halt PICC
+            mfrc522[reader].PICC_HaltA();
+            // Stop encryption on PCD
+            mfrc522[reader].PCD_StopCrypto1();
+        } //if (mfrc522[reader].PICC_IsNewC
+        delay(100);
+        continue;
+
+        // * The numeric data we'll be sending to the laptop that contains the enum ID of
+        // * each card read
+        uint8_t payload = 0;
+
         if (mfrc522[reader].PICC_IsNewCardPresent() && mfrc522[reader].PICC_ReadCardSerial())
         {
             holdOverDeadLoop[reader] = true;
+            uint8_t pokemon;
+
             if (VERBOSE_SERIAL)
             {
                 Serial.print(F("Reader "));
@@ -141,25 +174,17 @@ void loop()
             {
                 if (VERBOSE_SERIAL)
                 {
-                    Serial.println("");
-                    Serial.println("");
                     Serial.print("=== Reader");
                     Serial.print(reader);
                     Serial.println(" ===");
-
                     Serial.println("=== already captured this card!! ===");
                 }
-                handleCardLogic(reader);
-
-                if (VERBOSE_SERIAL)
-                    Serial.println("====================================");
+                pokemon = handleCardLogic(reader);
             }
             else
             {
                 if (VERBOSE_SERIAL)
                 {
-                    Serial.println("");
-                    Serial.println("");
                     Serial.print("+++ Reader");
                     Serial.print(reader);
                     Serial.println(" +++");
@@ -167,11 +192,11 @@ void loop()
                 }
 
                 RFIDDataCache[reader] = newCard;
-                handleCardLogic(reader);
-
-                if (VERBOSE_SERIAL)
-                    Serial.println("++++++++++++++++++++++++++++++");
+                pokemon = handleCardLogic(reader);
             }
+
+            payload = payload * 10;      // * shift the payload decimal to the left
+            payload = payload + pokemon; // * Add the current pokemon enum
         }
         else
         {
@@ -182,33 +207,42 @@ void loop()
             }
             holdOverDeadLoop[reader] = false;
         }
+
+        if (payload > 0)
+        {
+            Serial.println(payload); // * If we've captured some RFID data, write it out to the laptop
+        }
     }
 }
 
-void handleCardLogic(int readerNumber)
+uint8_t handleCardLogic(int readerNumber)
 {
+    uint8_t pokemon = 0;
+
     BarSections section = readerNumber == 0 ? BOTTOM_SECTION : TOP_SECTION;
 
     if (RFIDDataCache[readerNumber] == charmander)
     {
-        Serial.println(CHARMANDER);
         fillBar(RED, section);
+        pokemon = CHARMANDER;
     }
     if (RFIDDataCache[readerNumber] == bulbasaur)
     {
-        Serial.println(BULBASAUR);
         fillBar(GREEN, section);
+        pokemon = BULBASAUR;
     }
     if (RFIDDataCache[readerNumber] == squirtle)
     {
-        Serial.println(SQUIRTLE);
         fillBar(BLUE, section);
+        pokemon = SQUIRTLE;
     }
     if (RFIDDataCache[readerNumber] == pikachu)
     {
-        Serial.println(PIKACHU);
         fillBar(YELLOW, section);
+        pokemon = PIKACHU;
     }
+
+    return pokemon;
 }
 
 void setupNeopixelBar()
